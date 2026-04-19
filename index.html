@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFR Fuel Pin Radial Temperature Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e17;--surface:#111827;--surface2:#1a2236;--surface3:#222d44;--border:#2a3654;--txt:#e2e8f0;--txt-dim:#8899b8;--txt-bright:#f8fafc;--accent:#38bdf8;--warn:#ef4444;--warn-bg:rgba(239,68,68,.12);--safe:#22c55e;--conv-c:#38bdf8;--clad-c:#a78bfa;--bond-c:#fb923c;--fuel-c:#f43f5e;--radius:8px;--radius-lg:12px;--font-mono:'JetBrains Mono',monospace;--font-sans:'Noto Sans KR',sans-serif}
+html{font-size:14px}body{background:var(--bg);color:var(--txt);font-family:var(--font-sans);height:100vh;overflow:hidden}
+.header{background:linear-gradient(135deg,#0f172a,#1e293b);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;gap:1rem;height:50px}
+.header .logo{width:30px;height:30px;border-radius:50%;background:conic-gradient(var(--fuel-c),var(--bond-c),var(--clad-c),var(--conv-c),var(--fuel-c));display:flex;align-items:center;justify-content:center;animation:spin 8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.header .logo-inner{width:16px;height:16px;border-radius:50%;background:var(--bg)}
+.header h1{font-family:var(--font-mono);font-size:1.02rem;font-weight:600;color:var(--txt-bright)}
+.header .subtitle{font-size:.7rem;color:var(--txt-dim);margin-left:auto;font-family:var(--font-mono)}
+.app{display:grid;grid-template-columns:280px 1fr 1fr;gap:1px;background:var(--border);height:calc(100vh - 50px);overflow:hidden}
+.panel{background:var(--surface);padding:1rem;overflow-y:auto;height:100%}
+.input-panel{display:flex;flex-direction:column;gap:.65rem}
+.section-label{font-family:var(--font-mono);font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.2rem;display:flex;align-items:center;gap:.5rem}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.field{display:flex;flex-direction:column;gap:.18rem}
+.field label{font-size:.7rem;color:var(--txt-dim)}
+.field select,.field input[type=number]{background:var(--surface2);border:1px solid var(--border);color:var(--txt-bright);padding:.35rem .45rem;border-radius:var(--radius);font-family:var(--font-mono);font-size:.74rem;outline:none}
+.field select:focus,.field input[type=number]:focus{border-color:var(--accent)}
+.field select option{background:var(--surface2)}
+.slider-wrap{display:flex;flex-direction:column;gap:.15rem}
+.slider-header{display:flex;justify-content:space-between;align-items:baseline}
+.slider-header label{font-size:.7rem;color:var(--txt-dim)}
+.slider-input-wrap{display:flex;align-items:baseline;gap:.2rem}
+.slider-num{background:var(--surface2);border:1px solid var(--border);color:var(--accent);font-family:var(--font-mono);font-size:.76rem;font-weight:600;width:56px;text-align:right;padding:.18rem .3rem;border-radius:var(--radius);outline:none;-moz-appearance:textfield}
+.slider-num::-webkit-inner-spin-button,.slider-num::-webkit-outer-spin-button{-webkit-appearance:none}
+.slider-num:focus{border-color:var(--accent)}
+.slider-unit{font-family:var(--font-mono);font-size:.65rem;color:var(--txt-dim)}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;background:var(--surface3);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);cursor:pointer}
+.geom-toggle{background:none;border:1px solid var(--border);color:var(--txt-dim);padding:.3rem .5rem;border-radius:var(--radius);cursor:pointer;font-size:.66rem;font-family:var(--font-mono);text-align:left}
+.geom-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.geom-fields{display:none;flex-direction:column;gap:.3rem;margin-top:.15rem}
+.geom-fields.open{display:flex}
+.preset-group{display:flex;flex-direction:column;gap:.2rem}
+.preset-btn{background:var(--surface2);border:1px solid var(--border);color:var(--txt);padding:.28rem .45rem;border-radius:var(--radius);cursor:pointer;font-size:.64rem;font-family:var(--font-mono);text-align:left}
+.preset-btn:hover{border-color:var(--accent);background:var(--surface3)}
+.preset-btn span{color:var(--txt-dim);font-size:.58rem}
+.k-toggle{display:flex;gap:.25rem}
+.k-opt{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--txt-dim);padding:.28rem;border-radius:var(--radius);cursor:pointer;font-size:.62rem;font-family:var(--font-mono);text-align:center;transition:all .15s}
+.k-opt.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.mid-panel{display:flex;flex-direction:column;gap:.65rem}
+.temp-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:.25rem}
+.t-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .2rem;text-align:center}
+.t-card.hot{border-color:var(--fuel-c)}
+.t-card .t-label{font-size:.54rem;font-family:var(--font-mono);color:var(--txt-dim);text-transform:uppercase;margin-bottom:.1rem}
+.t-card .t-value{font-family:var(--font-mono);font-size:.88rem;font-weight:700;color:var(--txt-bright)}
+.t-card .t-unit{font-size:.54rem;color:var(--txt-dim)}
+.melt-warning{display:none;padding:.5rem .7rem;border-radius:var(--radius);background:var(--warn-bg);border:1px solid var(--warn);font-family:var(--font-mono);font-size:.68rem;color:var(--warn);animation:pulse 1.5s ease-in-out infinite}
+.melt-warning.show{display:flex;align-items:center;gap:.4rem}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.dt-bars{display:flex;flex-direction:column;gap:.35rem}
+.dt-bar-row{display:flex;flex-direction:column;gap:.08rem}
+.dt-bar-label{display:flex;justify-content:space-between;font-size:.64rem;font-family:var(--font-mono)}
+.dt-bar-label .name{color:var(--txt-dim)}.dt-bar-label .val{color:var(--txt-bright);font-weight:500}
+.dt-bar-track{height:14px;background:var(--surface3);border-radius:4px;overflow:hidden}
+.dt-bar-fill{height:100%;border-radius:4px;transition:width .3s;display:flex;align-items:center;padding-left:4px}
+.dt-bar-fill .pct{font-size:.54rem;font-family:var(--font-mono);color:#fff;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.eq-panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:.45rem .6rem;font-family:var(--font-mono);font-size:.6rem;color:var(--txt-dim);line-height:1.55}
+.eq-panel .eq-line{display:flex;gap:.35rem}
+.eq-panel .eq-var{color:var(--accent);min-width:48px;text-align:right}
+.eq-panel .eq-val{color:var(--txt-bright)}
+.kt-wrap{flex-shrink:0}
+.kt-graphs{display:flex;flex-direction:column;gap:.4rem}
+.kt-item{position:relative}
+.kt-item canvas{width:100%;height:110px;display:block;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface2)}
+.vis-panel{display:flex;flex-direction:column;gap:.5rem;padding:1rem}
+.canvas-wrap{flex:75 1 0;min-height:0;display:flex;flex-direction:column;gap:.3rem}
+.canvas-container{flex:1;min-height:0;position:relative}
+#crossSection{width:100%;height:100%;display:block;border-radius:var(--radius-lg);border:1px solid var(--border)}
+.colorbar-wrap{display:flex;align-items:center;gap:.35rem;flex-shrink:0}
+#colorBar{flex:1;height:10px;border-radius:4px;border:1px solid var(--border)}
+.colorbar-label{font-family:var(--font-mono);font-size:.6rem;color:var(--txt-dim);min-width:42px}
+.colorbar-label.right{text-align:right}
+.graph-wrap{flex:25 1 0;min-height:170px;display:flex;flex-direction:column}
+.graph-container{flex:1;min-height:0;position:relative}
+#radialGraph{width:100%;height:100%;display:block;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface2)}
+@media(max-width:1100px){.app{grid-template-columns:250px 1fr}.vis-panel{grid-row:2;grid-column:1/-1}}
+@media(max-width:768px){.app{grid-template-columns:1fr;height:auto;overflow-y:auto}.panel{height:auto}.temp-cards{grid-template-columns:repeat(3,1fr)}.canvas-wrap,.graph-wrap{min-height:260px}}
+</style>
+</head>
+<body>
+<div class="header"><div class="logo"><div class="logo-inner"></div></div><h1>SFR Fuel Pin — Radial Temperature Analyzer</h1><span class="subtitle">1-D Steady-State</span></div>
+<div class="app">
+<!-- COL1 -->
+<div class="panel input-panel">
+ <div><div class="section-label">Material Selection</div>
+  <div class="field"><label>Coolant</label><select id="selCoolant"><option value="Na" selected>Na (h=50,000)</option><option value="H2O">H₂O (h=30,000)</option><option value="He">He (h=3,000)</option></select></div>
+  <div class="field" style="margin-top:.3rem"><label>Cladding</label><select id="selClad"><option value="HT9" selected>HT9</option><option value="SS316">SS316</option><option value="Zircaloy">Zircaloy</option></select></div>
+  <div class="field" style="margin-top:.3rem"><label>Bond</label><select id="selBond"><option value="Na" selected>Na-Bond</option><option value="He">He-Bond</option></select></div>
+  <div class="field" style="margin-top:.3rem"><label>Fuel</label><select id="selFuel"><option value="MOX">MOX</option><option value="Metal" selected>Metal (U-10Zr)</option><option value="UO2">UO₂</option></select></div>
+ </div>
+ <div><div class="section-label">Conductivity Model</div>
+  <div class="k-toggle"><button class="k-opt active" id="kConst" onclick="setKMode('const')">Constant k</button><button class="k-opt" id="kTemp" onclick="setKMode('kT')">k(T) Dep.</button></div>
+ </div>
+ <div><div class="section-label">Operating Conditions</div>
+  <div class="slider-wrap"><div class="slider-header"><label>Linear Power (q′)</label><div class="slider-input-wrap"><input type="number" class="slider-num" id="numQ" value="200" min="20" max="500" step="1"><span class="slider-unit">W/cm</span></div></div><input type="range" id="sliderQ" min="20" max="500" value="200" step="1"></div>
+  <div class="slider-wrap" style="margin-top:.4rem"><div class="slider-header"><label>Coolant Temperature</label><div class="slider-input-wrap"><input type="number" class="slider-num" id="numTc" value="400" min="150" max="650" step="1"><span class="slider-unit">°C</span></div></div><input type="range" id="sliderTc" min="150" max="650" value="400" step="1"></div>
+ </div>
+ <div><div class="section-label">Geometry</div>
+  <button class="geom-toggle" id="geomToggle" onclick="toggleGeom()">▸ Fuel Pin Dimensions</button>
+  <div class="geom-fields" id="geomFields">
+   <div class="field"><label>r_fuel [mm]</label><input type="number" id="inRfo" value="2.75" step="0.05" min="0.5" max="10"></div>
+   <div class="field"><label>δ_bond [mm]</label><input type="number" id="inDelta" value="0.50" step="0.01" min="0.01" max="3"></div>
+   <div class="field"><label>r_ci [mm]</label><input type="number" id="inRci" value="3.25" step="0.05" min="0.5" max="12"></div>
+   <div class="field"><label>r_co [mm]</label><input type="number" id="inRco" value="3.75" step="0.05" min="0.5" max="15"></div>
+   <div style="font-size:.6rem;color:var(--txt-dim);font-family:var(--font-mono);margin-top:.1rem">r_m=<span id="dispRm">3.00</span>mm | clad t=<span id="dispCladT">0.50</span>mm</div>
+  </div>
+ </div>
+ <div><div class="section-label">Presets</div>
+  <div class="preset-group">
+   <button class="preset-btn" onclick="applyPreset('sfr')">● SFR <span>— Na/HT9/Na/Metal 300 400</span></button>
+   <button class="preset-btn" onclick="applyPreset('pwr')">● PWR <span>— H₂O/Zry/He/UO₂ 200 300</span></button>
+   <button class="preset-btn" onclick="applyPreset('htgr')">● HTGR <span>— He/SS316/He/UO₂ 100 500</span></button>
+  </div>
+ </div>
+</div>
+<!-- COL2 -->
+<div class="panel mid-panel">
+ <div><div class="section-label">Interface Temperatures</div>
+  <div class="temp-cards">
+   <div class="t-card" id="cardTcool"><div class="t-label">T_cool</div><div class="t-value">—</div><div class="t-unit">°C</div></div>
+   <div class="t-card" id="cardTco"><div class="t-label">T_co</div><div class="t-value">—</div><div class="t-unit">°C</div></div>
+   <div class="t-card" id="cardTci"><div class="t-label">T_ci</div><div class="t-value">—</div><div class="t-unit">°C</div></div>
+   <div class="t-card" id="cardTfs"><div class="t-label">T_fs</div><div class="t-value">—</div><div class="t-unit">°C</div></div>
+   <div class="t-card" id="cardTfc"><div class="t-label">T_fc</div><div class="t-value">—</div><div class="t-unit">°C</div></div>
+  </div>
+ </div>
+ <div class="melt-warning" id="meltWarn"><span style="font-size:1rem">⚠️</span><span id="meltMsg"></span></div>
+ <div><div class="section-label">ΔT Breakdown</div>
+  <div class="dt-bars">
+   <div class="dt-bar-row"><div class="dt-bar-label"><span class="name">ΔT_conv</span><span class="val" id="dtConvVal">—</span></div><div class="dt-bar-track"><div class="dt-bar-fill" id="dtConvBar" style="background:var(--conv-c)"><span class="pct" id="dtConvPct"></span></div></div></div>
+   <div class="dt-bar-row"><div class="dt-bar-label"><span class="name">ΔT_clad</span><span class="val" id="dtCladVal">—</span></div><div class="dt-bar-track"><div class="dt-bar-fill" id="dtCladBar" style="background:var(--clad-c)"><span class="pct" id="dtCladPct"></span></div></div></div>
+   <div class="dt-bar-row"><div class="dt-bar-label"><span class="name">ΔT_bond</span><span class="val" id="dtBondVal">—</span></div><div class="dt-bar-track"><div class="dt-bar-fill" id="dtBondBar" style="background:var(--bond-c)"><span class="pct" id="dtBondPct"></span></div></div></div>
+   <div class="dt-bar-row"><div class="dt-bar-label"><span class="name">ΔT_fuel</span><span class="val" id="dtFuelVal">—</span></div><div class="dt-bar-track"><div class="dt-bar-fill" id="dtFuelBar" style="background:var(--fuel-c)"><span class="pct" id="dtFuelPct"></span></div></div></div>
+  </div>
+ </div>
+ <div class="kt-wrap" id="ktWrap" style="display:none"><div class="section-label">k(T) — Thermal Conductivity</div>
+  <div class="kt-graphs">
+   <div class="kt-item"><canvas id="ktFuel"></canvas></div>
+   <div class="kt-item"><canvas id="ktClad"></canvas></div>
+   <div class="kt-item"><canvas id="ktBond"></canvas></div>
+  </div>
+ </div>
+ <div class="eq-panel" id="eqPanel"></div>
+</div>
+<!-- COL3 -->
+<div class="panel vis-panel">
+ <div class="canvas-wrap"><div class="section-label">Cross-Section Temperature Map</div><div class="canvas-container"><canvas id="crossSection"></canvas></div><div class="colorbar-wrap"><span class="colorbar-label" id="cbMin">—</span><canvas id="colorBar" height="10"></canvas><span class="colorbar-label right" id="cbMax">—</span></div></div>
+ <div class="graph-wrap"><div class="section-label">Radial Temperature Profile</div><div class="graph-container"><canvas id="radialGraph"></canvas></div></div>
+</div>
+</div>
+<script>
+// ═══════ k(T) CORRELATIONS (T in Kelvin) ═══════
+// Sources: NUREG/CR-7024 (PNNL-19417), BISON INL/EXT-13-29930, IAEA-TECDOC-1496
+// k(T) CORRELATIONS — v3 confirmed (Claude-ChatGPT cross-verified)
+// All T in Kelvin, k in W/m·K
+const KT={fuel:{
+  // ✅ Modified NFI — NUREG/CR-7024, Sec.2.3.3
+  UO2(T){return 1/(0.0452+0.000246*T)+3.5e9/(T*T)*Math.exp(-16361/T)},
+  // ✅ Duriez/Modified NFI — NUREG/CR-7024, Sec.2.3.3 (x=0.30 UI default)
+  MOX(T){const x=.3;return 1/(0.0452+1.1599*x+(0.000246-0.000112*x)*T)+3.5e9/(T*T)*Math.exp(-16361/T)},
+  // ✅ Billone generic model — BISON Theory Manual Sec.8.10.1.1
+  // Binary U-10Zr: wZr=0.10, wPu=0.00 (unirradiated, fresh fuel)
+  // Note: overestimates k at high-T vs experimental data (Janney 2018)
+  Metal(T){return 11.7119+1.33453e-2*T+9.38e-6*T*T}},
+clad:{
+  // ✅ Leibowitz-Blomquist — BISON Sec.8.2.1, transition at 1030K
+  HT9(T){return T<1030?17.622+2.428e-2*T-1.696e-5*T*T:12.027+1.218e-2*T},
+  // ✅ Thermal316 — BISON Sec.8.7.1
+  SS316(T){return 6.308+2.716e-2*T-7.301e-6*T*T},
+  // ✅ MATPRO CTHCON — NUREG/CR-7024, Sec.3.5
+  Zircaloy(T){return 7.51+2.09e-2*T-1.45e-5*T*T+7.67e-9*T*T*T}},
+bond:{
+  // ✅ Fink & Leibowitz — ANL/RE-95/2 (1995)
+  Na(T){return 124.67-0.11381*T+5.5226e-5*T*T-1.1842e-8*T*T*T},
+  // ✅ MATPRO gas — NUREG/CR-7024, Sec.4.1
+  He(T){return 2.639e-3*Math.pow(T,.7085)}}};
+
+const DB={coolant:{Na:{h:50000},H2O:{h:30000},He:{h:3000}},clad:{SS316:{k:20},Zircaloy:{k:17},HT9:{k:28}},bond:{Na:{k:62},He:{k:.25}},fuel:{MOX:{k:2.5,Tm:2750},Metal:{k:15,Tm:1200},UO2:{k:3,Tm:2800}}};
+let kMode='const';
+function setKMode(m){kMode=m;document.getElementById('kConst').classList.toggle('active',m==='const');document.getElementById('kTemp').classList.toggle('active',m==='kT');document.getElementById('ktWrap').style.display=m==='kT'?'block':'none';updateUI()}
+
+// ═══════ KIRCHHOFF UTILITIES ═══════
+function intK(kF,T1,T2){const n=200,h=(T2-T1)/n;let s=kF(T1)+kF(T2);for(let i=1;i<n;i++)s+=kF(T1+i*h)*(i%2===0?2:4);return s*h/3}
+function invBisect(kF,tgt,Tb,Tlo,Thi){for(let i=0;i<60;i++){const Tm=(Tlo+Thi)/2,v=intK(kF,Tb,Tm);if(Math.abs(v-tgt)<.01)return Tm;if(v<tgt)Tlo=Tm;else Thi=Tm}return(Tlo+Thi)/2}
+
+// ═══════ CALCULATE ═══════
+function calculate(){
+  const cT=document.getElementById('selCoolant').value,dT=document.getElementById('selClad').value,bT=document.getElementById('selBond').value,fT=document.getElementById('selFuel').value;
+  const qW=parseFloat(document.getElementById('sliderQ').value),Tc=parseFloat(document.getElementById('sliderTc').value);
+  const rfm=parseFloat(document.getElementById('inRfo').value),rcim=parseFloat(document.getElementById('inRci').value),rcom=parseFloat(document.getElementById('inRco').value);
+  const q=qW*100,rfo=rfm*.001,rci=rcim*.001,rco=rcom*.001,del=rci-rfo,rm=(rci+rfo)/2;
+  const h=DB.coolant[cT].h,Tm=DB.fuel[fT].Tm,P2=2*Math.PI;
+  const dTv=q/(P2*rco*h),Tco=Tc+dTv;
+  let Tci,Tfs,Tfc,dTc,dTb,dTf,kCe,kBe,kFe;
+  // k(T) mode stores extra data for visualization
+  let TcoK,TciK,TfsK,TfcK,kFF,kCF,kBF;
+  if(kMode==='kT'){
+    kCF=KT.clad[dT];kBF=KT.bond[bT];kFF=KT.fuel[fT];
+    const thC=q*Math.log(rco/rci)/P2;TcoK=Tco+273.15;TciK=invBisect(kCF,thC,TcoK,TcoK,TcoK+2000);
+    Tci=TciK-273.15;dTc=Tci-Tco;kCe=thC/dTc;
+    const thB=q*del/(P2*rm);TfsK=invBisect(kBF,thB,TciK,TciK,TciK+5000);
+    Tfs=TfsK-273.15;dTb=Tfs-Tci;kBe=thB/dTb;
+    const thF=q/(4*Math.PI);TfcK=invBisect(kFF,thF,TfsK,TfsK,TfsK+8000);
+    Tfc=TfcK-273.15;dTf=Tfc-Tfs;kFe=thF/dTf;
+  }else{
+    const kC=DB.clad[dT].k,kB=DB.bond[bT].k,kF=DB.fuel[fT].k;
+    dTc=q*Math.log(rco/rci)/(P2*kC);dTb=q*del/(P2*rm*kB);dTf=q/(4*Math.PI*kF);
+    Tci=Tco+dTc;Tfs=Tci+dTb;Tfc=Tfs+dTf;kCe=kC;kBe=kB;kFe=kF;
+  }
+  return{Tcool:Tc,Tco,Tci,Tfs,Tfc,Tmelt:Tm,dT_conv:dTv,dT_clad:dTc,dT_bond:dTb,dT_fuel:dTf,dT_total:dTv+dTc+dTb+dTf,qPrime:q,rfo,rci,rco,delta:del,rm,h,kClad:kCe,kBond:kBe,kFuel:kFe,fuelType:fT,cladType:dT,bondType:bT,rfo_mm:rfm,rci_mm:rcim,rco_mm:rcom,
+    // k(T) mode extras
+    TcoK,TciK,TfsK,TfcK,kFF,kCF,kBF,kMode};
+}
+
+// ═══════ RADIAL PROFILE — CONST MODE (unchanged) ═══════
+function radialProfile_const(res,nPts){
+  const{qPrime,rfo,rci,rco,kFuel,Tci,Tfs,Tfc,dT_clad,dT_bond}=res;
+  const pts=[],q3=qPrime/(Math.PI*rfo*rfo);
+  for(let i=0;i<=nPts;i++){const r=(i/nPts)*rfo;pts.push({r:r*1000,T:Tfc-(q3*r*r)/(4*kFuel)})}
+  const lB=Math.log(rci/rfo);for(let i=1;i<=nPts/3;i++){const r=rfo+(i/(nPts/3))*(rci-rfo);pts.push({r:r*1000,T:Tfs-dT_bond*Math.log(r/rfo)/lB})}
+  const lC=Math.log(rco/rci);for(let i=1;i<=nPts/3;i++){const r=rci+(i/(nPts/3))*(rco-rci);pts.push({r:r*1000,T:Tci-dT_clad*Math.log(r/rci)/lC})}
+  return pts;
+}
+
+// ═══════ RADIAL PROFILE — k(T) MODE (Kirchhoff inversion) ═══════
+function radialProfile_kT(res,nPts){
+  const{qPrime,rfo,rci,rco,delta,rm,TfsK,TciK,TcoK,TfcK,kFF,kCF,kBF}=res;
+  const pts=[],P2=2*Math.PI;
+  const thF_total=qPrime/(4*Math.PI); // total fuel Kirchhoff integral
+  const thB_total=qPrime*delta/(P2*rm);
+  // Fuel: ∫[TfsK→T(r)] k dT = thF_total × (1 - r²/rf²)
+  for(let i=0;i<=nPts;i++){
+    const r=(i/nPts)*rfo, frac=1-(r*r)/(rfo*rfo);
+    const tgt=thF_total*frac;
+    const TK=tgt<0.01?TfsK:invBisect(kFF,tgt,TfsK,TfsK,TfcK+100);
+    pts.push({r:r*1000,T:TK-273.15});
+  }
+  // Bond: ∫[TciK→T(r)] k dT = thB_total × (rci-r)/(rci-rfo)
+  const nB=Math.max(Math.round(nPts/3),10);
+  for(let i=1;i<=nB;i++){
+    const r=rfo+(i/nB)*(rci-rfo), frac=(rci-r)/(rci-rfo);
+    const tgt=thB_total*frac;
+    const TK=tgt<0.01?TciK:invBisect(kBF,tgt,TciK,TciK,TfsK+100);
+    pts.push({r:r*1000,T:TK-273.15});
+  }
+  // Cladding: ∫[TcoK→T(r)] k dT = (q'/(2π)) × ln(rco/r)
+  const nC=Math.max(Math.round(nPts/3),10);
+  for(let i=1;i<=nC;i++){
+    const r=rci+(i/nC)*(rco-rci);
+    const tgt=(qPrime/P2)*Math.log(rco/r);
+    const TK=tgt<0.01?TcoK:invBisect(kCF,tgt,TcoK,TcoK,TciK+100);
+    pts.push({r:r*1000,T:TK-273.15});
+  }
+  return pts;
+}
+
+// ═══════ PRECOMPUTED LOOKUP TABLE for drawCS ═══════
+let _lut=null; // {rs:[], Ts:[], rMax:0}
+function buildLUT(res,n){
+  const pts=res.kMode==='kT'?radialProfile_kT(res,n):radialProfile_const(res,n);
+  // Sort by r (should already be sorted but ensure)
+  pts.sort((a,b)=>a.r-b.r);
+  _lut={rs:pts.map(p=>p.r*.001),Ts:pts.map(p=>p.T),rMax:res.rco*1.2,Tcool:res.Tcool};
+}
+function lutT(r_m){
+  if(!_lut)return 0;
+  if(r_m>=_lut.rMax)return _lut.Tcool;
+  if(r_m>_lut.rs[_lut.rs.length-1])return _lut.Tcool;
+  // Binary search + linear interpolation
+  let lo=0,hi=_lut.rs.length-1;
+  while(lo<hi-1){const m=(lo+hi)>>1;if(_lut.rs[m]<=r_m)lo=m;else hi=m;}
+  const f=(r_m-_lut.rs[lo])/(_lut.rs[hi]-_lut.rs[lo]||1);
+  return _lut.Ts[lo]+f*(_lut.Ts[hi]-_lut.Ts[lo]);
+}
+
+// ═══════ DRAW HELPERS ═══════
+const CS2=[[21,101,192],[255,238,88],[183,28,28]];
+function tCol(T,mn,mx){let t=Math.max(0,Math.min(1,(T-mn)/(mx-mn||1)));const[c0,c1,lt]=t<.5?[CS2[0],CS2[1],t*2]:[CS2[1],CS2[2],(t-.5)*2];return[Math.round(c0[0]+(c1[0]-c0[0])*lt),Math.round(c0[1]+(c1[1]-c0[1])*lt),Math.round(c0[2]+(c1[2]-c0[2])*lt)]}
+function initCanvas(id){const c=document.getElementById(id),d=window.devicePixelRatio||1,r=c.getBoundingClientRect();c.width=r.width*d;c.height=r.height*d;const x=c.getContext('2d');x.scale(d,d);return{ctx:x,W:r.width,H:r.height,dpr:d,canvas:c}}
+function rRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath()}
+
+// ═══════ DRAW CROSS-SECTION — uses LUT for both modes ═══════
+function drawCS(res){
+  // Build lookup table (300 points for kT, 120 for const)
+  buildLUT(res, res.kMode==='kT'?300:120);
+  const{ctx,W,H,dpr,canvas}=initCanvas('crossSection');
+  const{rfo,rci,rco,Tcool,Tco,Tci,Tfs,Tfc}=res;
+  const lM=72,us=Math.min(W,H)-lM*2,cx=W/2,cy=H/2,sc=(us/2)/(rco*1.50);
+  const rcoP=rco*sc,rciP=rci*sc,rfoP=rfo*sc,Tmn=Tcool,Tmx=Tfc;
+  ctx.fillStyle='#0a0e17';ctx.fillRect(0,0,W,H);
+  ctx.beginPath();ctx.arc(cx,cy,rcoP*1.2,0,Math.PI*2);const cr=tCol(Tcool,Tmn,Tmx);ctx.fillStyle=`rgb(${cr[0]},${cr[1]},${cr[2]})`;ctx.fill();
+  // Pixel rendering via LUT interpolation
+  const im=ctx.createImageData(canvas.width,canvas.height);const st=2;
+  for(let py=0;py<H;py+=st/dpr)for(let px=0;px<W;px+=st/dpr){
+    const dx=px-cx,dy=py-cy,d=Math.sqrt(dx*dx+dy*dy),rR=d/sc;
+    let T;
+    if(rR<=rco*1.2){ T=rR<=rco?lutT(rR):Tcool; }else continue;
+    const rgb=tCol(T,Tmn,Tmx);
+    for(let sy=0;sy<st;sy++)for(let sx=0;sx<st;sx++){
+      const ix=Math.round(px*dpr)+sx,iy=Math.round(py*dpr)+sy;
+      if(ix<canvas.width&&iy<canvas.height){const idx=(iy*canvas.width+ix)*4;im.data[idx]=rgb[0];im.data[idx+1]=rgb[1];im.data[idx+2]=rgb[2];im.data[idx+3]=255}}
+  }
+  ctx.putImageData(im,0,0);ctx.strokeStyle='rgba(255,255,255,0.55)';ctx.lineWidth=1.5;
+  [rfoP,rciP,rcoP].forEach(r=>{ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke()});
+  const bf=Math.max(8,Math.min(10,us/22));ctx.font=`600 ${bf}px 'JetBrains Mono'`;
+  const oR=rcoP*1.42,A=i=>-Math.PI*.38+i*(Math.PI*2/8);
+  [{l:'Fuel▲',T:Tfc,dR:1,a:A(0),c:'#f43f5e'},{l:'Fuel▼',T:Tfs,dR:rfoP*.92,a:A(1),c:'#f43f5e'},{l:'Bond▲',T:Tfs,dR:rfoP+(rciP-rfoP)*.2,a:A(2),c:'#fb923c'},{l:'Bond▼',T:Tci,dR:rciP-(rciP-rfoP)*.2,a:A(3),c:'#fb923c'},{l:'Clad▲',T:Tci,dR:rciP+(rcoP-rciP)*.2,a:A(4),c:'#a78bfa'},{l:'Clad▼',T:Tco,dR:rcoP-(rcoP-rciP)*.2,a:A(5),c:'#a78bfa'},{l:'Cool▲',T:Tco,dR:rcoP*1.03,a:A(6),c:'#38bdf8'},{l:'Cool▼',T:Tcool,dR:rcoP*1.14,a:A(7),c:'#38bdf8'}].forEach(lb=>{
+    const dx2=cx+lb.dR*Math.cos(lb.a),dy2=cy+lb.dR*Math.sin(lb.a),bx=cx+oR*Math.cos(lb.a),by=cy+oR*Math.sin(lb.a);
+    const txt=`${lb.l} ${lb.T.toFixed(0)}°C`,tw=ctx.measureText(txt).width+12,th=bf+9;
+    ctx.strokeStyle=lb.c+'99';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(dx2,dy2);ctx.lineTo(bx,by);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(dx2,dy2,3.5,0,Math.PI*2);ctx.fillStyle=lb.c;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.2;ctx.stroke();
+    ctx.fillStyle='rgba(0,0,0,0.88)';rRect(ctx,bx-tw/2,by-th/2,tw,th,4);ctx.fill();ctx.strokeStyle=lb.c+'AA';ctx.lineWidth=1;rRect(ctx,bx-tw/2,by-th/2,tw,th,4);ctx.stroke();
+    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,bx,by);
+  });
+  const cb=document.getElementById('colorBar'),d2=window.devicePixelRatio||1,rb=cb.getBoundingClientRect();cb.width=rb.width*d2;cb.height=10*d2;const cx2=cb.getContext('2d');cx2.scale(d2,d2);for(let x=0;x<rb.width;x++){const rgb=tCol(Tmn+(x/rb.width)*(Tmx-Tmn),Tmn,Tmx);cx2.fillStyle=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;cx2.fillRect(x,0,1,10)}
+  document.getElementById('cbMin').textContent=Tmn.toFixed(0)+'°C';document.getElementById('cbMax').textContent=Tmx.toFixed(0)+'°C';
+}
+
+// ═══════ DRAW RADIAL GRAPH — branches on kMode ═══════
+function drawRG(res){
+  const{ctx,W,H}=initCanvas('radialGraph');const ml=48,mr=12,mt=14,mb=30,pw=W-ml-mr,ph=H-mt-mb;if(pw<=0||ph<=0)return;
+  const pts=res.kMode==='kT'?radialProfile_kT(res,160):radialProfile_const(res,120);
+  const rMax=res.rco_mm*1.2,Tmn=Math.floor(res.Tcool/50)*50,Tmx=Math.ceil(res.Tfc/50)*50+50;
+  ctx.fillStyle='#141c2e';ctx.fillRect(0,0,W,H);
+  const fs=Math.max(7,Math.min(8,pw/50));
+  [{r0:0,r1:res.rfo_mm,c:'rgba(244,63,94,0.08)',l:'Fuel'},{r0:res.rfo_mm,r1:res.rci_mm,c:'rgba(251,146,60,0.08)',l:'Bond'},{r0:res.rci_mm,r1:res.rco_mm,c:'rgba(167,139,250,0.08)',l:'Clad'},{r0:res.rco_mm,r1:rMax,c:'rgba(56,189,248,0.06)',l:'Cool'}].forEach(rg=>{const x0=ml+(rg.r0/rMax)*pw,x1=ml+(rg.r1/rMax)*pw;ctx.fillStyle=rg.c;ctx.fillRect(x0,mt,x1-x0,ph);ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font=`500 ${fs}px 'JetBrains Mono'`;ctx.textAlign='center';ctx.fillText(rg.l,(x0+x1)/2,mt+10)});
+  ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=1;for(let i=0;i<=6;i++){const y=mt+(i/6)*ph;ctx.beginPath();ctx.moveTo(ml,y);ctx.lineTo(ml+pw,y);ctx.stroke()}
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.setLineDash([4,3]);[res.rfo_mm,res.rci_mm,res.rco_mm].forEach(rv=>{const x=ml+(rv/rMax)*pw;ctx.beginPath();ctx.moveTo(x,mt);ctx.lineTo(x,mt+ph);ctx.stroke()});ctx.setLineDash([]);
+  ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ml,mt);ctx.lineTo(ml,mt+ph);ctx.lineTo(ml+pw,mt+ph);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font=`400 ${fs}px 'JetBrains Mono'`;ctx.textAlign='center';for(let i=0;i<=5;i++){const r=(i/5)*rMax;ctx.fillText(r.toFixed(1),ml+(r/rMax)*pw,mt+ph+10)}ctx.fillText('r [mm]',ml+pw/2,mt+ph+22);ctx.textAlign='right';for(let i=0;i<=6;i++){const T=Tmx-(i/6)*(Tmx-Tmn);ctx.fillText(T.toFixed(0),ml-4,mt+(i/6)*ph+3)}
+  ctx.save();ctx.translate(8,mt+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('T [°C]',0,0);ctx.restore();
+  ctx.beginPath();let s2=false;pts.forEach(pt=>{const x=ml+(pt.r/rMax)*pw,y=mt+((Tmx-pt.T)/(Tmx-Tmn))*ph;if(!s2){ctx.moveTo(x,y);s2=true}else ctx.lineTo(x,y)});ctx.strokeStyle='#f8fafc';ctx.lineWidth=2;ctx.stroke();
+  const gr=ctx.createLinearGradient(0,mt,0,mt+ph);gr.addColorStop(0,'rgba(244,63,94,0.2)');gr.addColorStop(.5,'rgba(251,146,60,0.07)');gr.addColorStop(1,'rgba(56,189,248,0.03)');ctx.lineTo(ml+(pts[pts.length-1].r/rMax)*pw,mt+ph);ctx.lineTo(ml,mt+ph);ctx.closePath();ctx.fillStyle=gr;ctx.fill();
+  const df=Math.max(7,Math.min(9,pw/45));ctx.font=`600 ${df}px 'JetBrains Mono'`;
+  [{r:0,T:res.Tfc,l:'T_fc',c:'#f43f5e',o:-7},{r:res.rfo_mm,T:res.Tfs,l:'T_fs',c:'#fb923c',o:11},{r:res.rci_mm,T:res.Tci,l:'T_ci',c:'#a78bfa',o:-7},{r:res.rco_mm,T:res.Tco,l:'T_co',c:'#38bdf8',o:11}].forEach(k=>{const x=ml+(k.r/rMax)*pw,y=mt+((Tmx-k.T)/(Tmx-Tmn))*ph;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=k.c;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=k.c;ctx.textAlign='left';ctx.fillText(`${k.l}=${k.T.toFixed(0)}`,x+5,y+k.o)});
+  if(res.Tmelt<Tmx){const mY=mt+((Tmx-res.Tmelt)/(Tmx-Tmn))*ph;ctx.strokeStyle='rgba(239,68,68,0.6)';ctx.lineWidth=1.5;ctx.setLineDash([8,4]);ctx.beginPath();ctx.moveTo(ml,mY);ctx.lineTo(ml+pw,mY);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(239,68,68,0.7)';ctx.font=`600 ${df}px 'JetBrains Mono'`;ctx.textAlign='right';ctx.fillText(`T_melt=${res.Tmelt}°C`,ml+pw-3,mY-4)}
+}
+
+// ═══════ DRAW k(T) GRAPHS — one per material ═══════
+function drawOneKT(canvasId, kFunc, constK, color, label, TloOp, ThiOp, TmC, TMC) {
+  const {ctx,W,H} = initCanvas(canvasId);
+  const ml=42,mr=10,mt=10,mb=22,pw=W-ml-mr,ph=H-mt-mb;
+  if(pw<=0||ph<=0)return;
+  ctx.fillStyle='#141c2e';ctx.fillRect(0,0,W,H);
+
+  const TmK=TmC+273.15, TMK=TMC+273.15, N=200;
+  const pts=[];let kMx=0,kMn=1e9;
+  for(let i=0;i<=N;i++){const TK=TmK+(i/N)*(TMK-TmK),TC=TK-273.15,k=kFunc(TK);pts.push({T:TC,k});kMx=Math.max(kMx,k);kMn=Math.min(kMn,k)}
+  // Include constK in range
+  kMx=Math.max(kMx,constK);kMn=Math.min(kMn,constK);
+  const pad=(kMx-kMn)*0.12||1;const yMn=Math.max(0,kMn-pad),yMx=kMx+pad;
+  const toX=T=>ml+(T-TmC)/(TMC-TmC)*pw, toY=k=>mt+ph-(k-yMn)/(yMx-yMn)*ph;
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=.5;ctx.setLineDash([3,3]);
+  for(let i=0;i<=3;i++){const y=mt+(i/3)*ph;ctx.beginPath();ctx.moveTo(ml,y);ctx.lineTo(ml+pw,y);ctx.stroke()}
+  ctx.setLineDash([]);
+
+  // Axes
+  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=.5;
+  ctx.beginPath();ctx.moveTo(ml,mt);ctx.lineTo(ml,mt+ph);ctx.lineTo(ml+pw,mt+ph);ctx.stroke();
+
+  const fs=Math.max(6,Math.min(7.5,pw/50));
+  ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font=`400 ${fs}px 'JetBrains Mono'`;
+
+  // Y labels
+  ctx.textAlign='right';
+  for(let i=0;i<=3;i++){const k=yMx-(i/3)*(yMx-yMn);ctx.fillText(k.toFixed(1),ml-3,mt+(i/3)*ph+3)}
+
+  // X labels
+  ctx.textAlign='center';
+  const stp=Math.ceil((TMC-TmC)/4/50)*50||100;
+  for(let T=Math.ceil(TmC/stp)*stp;T<=TMC;T+=stp)ctx.fillText(T.toFixed(0),toX(T),mt+ph+10);
+  ctx.fillText('T [°C]',ml+pw/2,mt+ph+18);
+
+  // Y axis title
+  ctx.save();ctx.translate(5,mt+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('k',0,0);ctx.restore();
+
+  // Constant k dashed line
+  if(constK>=yMn&&constK<=yMx){
+    ctx.strokeStyle=color+'44';ctx.lineWidth=1;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(ml,toY(constK));ctx.lineTo(ml+pw,toY(constK));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=color+'88';ctx.font=`500 ${fs}px 'JetBrains Mono'`;ctx.textAlign='right';
+    ctx.fillText(`const=${constK}`,ml+pw-2,toY(constK)-4);
+  }
+
+  // k(T) curve with gradient fill
+  ctx.beginPath();pts.forEach((p,i)=>{const x=toX(p.T),y=toY(p.k);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
+  // Fill under curve
+  ctx.lineTo(toX(pts[pts.length-1].T),mt+ph);ctx.lineTo(toX(pts[0].T),mt+ph);ctx.closePath();
+  ctx.fillStyle=color+'15';ctx.fill();
+
+  // Operating range shading
+  const xLo=toX(TloOp),xHi=toX(ThiOp);
+  ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(xLo,mt,xHi-xLo,ph);
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(xLo,mt);ctx.lineTo(xLo,mt+ph);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(xHi,mt);ctx.lineTo(xHi,mt+ph);ctx.stroke();ctx.setLineDash([]);
+
+  // Dots at operating range boundaries
+  const drawDot=(TC,lbl,offY)=>{const TK=TC+273.15,k=kFunc(TK),x=toX(TC),y=toY(k);
+    ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font=`600 ${fs}px 'JetBrains Mono'`;ctx.textAlign='left';
+    ctx.fillText(`${lbl} ${k.toFixed(1)}`,x+5,y+offY)};
+  drawDot(TloOp,'lo',-4);drawDot(ThiOp,'hi',10);
+
+  // Title label
+  ctx.fillStyle=color;ctx.font=`700 ${Math.max(8,fs+1)}px 'JetBrains Mono'`;ctx.textAlign='left';
+  ctx.fillText(label,ml+4,mt+10);
+}
+
+function drawKTGraph(res){
+  if(kMode!=='kT')return;
+  const TmC=Math.max(0,res.Tcool-80), TMC=Math.max(res.Tfc+150,800);
+  // Fuel: operating range T_fs ~ T_fc
+  drawOneKT('ktFuel',KT.fuel[res.fuelType],DB.fuel[res.fuelType].k,'#f43f5e',
+    `Fuel: ${res.fuelType}`,res.Tfs,res.Tfc,TmC,TMC);
+  // Clad: operating range T_co ~ T_ci
+  drawOneKT('ktClad',KT.clad[res.cladType],DB.clad[res.cladType].k,'#a78bfa',
+    `Clad: ${res.cladType}`,res.Tco,res.Tci,TmC,TMC);
+  // Bond: operating range T_ci ~ T_fs
+  drawOneKT('ktBond',KT.bond[res.bondType],DB.bond[res.bondType].k,'#fb923c',
+    `Bond: ${res.bondType==='Na'?'Na-Bond':'He-Bond'}`,res.Tci,res.Tfs,TmC,TMC);
+}
+
+// ═══════ UPDATE ═══════
+function updateUI(src){
+  const sQ=document.getElementById('sliderQ'),nQ=document.getElementById('numQ'),sT=document.getElementById('sliderTc'),nT=document.getElementById('numTc');
+  if(src==='numQ'){let v=parseFloat(nQ.value);if(!isNaN(v)){v=Math.max(20,Math.min(500,v));sQ.value=v}}else if(src==='numTc'){let v=parseFloat(nT.value);if(!isNaN(v)){v=Math.max(150,Math.min(650,v));sT.value=v}}else{nQ.value=sQ.value;nT.value=sT.value}
+  const eR=document.getElementById('inRfo'),eD=document.getElementById('inDelta'),eI=document.getElementById('inRci'),eO=document.getElementById('inRco');
+  if(src==='inDelta')eI.value=(parseFloat(eR.value)+parseFloat(eD.value)).toFixed(2);else if(src==='inRfo')eI.value=(parseFloat(eR.value)+parseFloat(eD.value)).toFixed(2);else if(src==='inRci')eD.value=Math.max(.01,parseFloat(eI.value)-parseFloat(eR.value)).toFixed(2);
+  document.getElementById('dispRm').textContent=((parseFloat(eI.value)+parseFloat(eR.value))/2).toFixed(2);document.getElementById('dispCladT').textContent=(parseFloat(eO.value)-parseFloat(eI.value)).toFixed(2);
+  const res=calculate();
+  const sC=(id,T,h)=>{const e=document.getElementById(id);e.querySelector('.t-value').textContent=T.toFixed(1);e.classList.toggle('hot',h)};
+  sC('cardTcool',res.Tcool,false);sC('cardTco',res.Tco,false);sC('cardTci',res.Tci,false);sC('cardTfs',res.Tfs,false);sC('cardTfc',res.Tfc,res.Tfc>res.Tmelt);
+  const tot=res.dT_total||1,sB=(p,d)=>{const pc=(d/tot)*100;document.getElementById(p+'Val').textContent=d.toFixed(1)+' °C';document.getElementById(p+'Bar').style.width=pc.toFixed(1)+'%';document.getElementById(p+'Pct').textContent=pc.toFixed(0)+'%'};
+  sB('dtConv',res.dT_conv);sB('dtClad',res.dT_clad);sB('dtBond',res.dT_bond);sB('dtFuel',res.dT_fuel);
+  const w=document.getElementById('meltWarn');if(res.Tfc>res.Tmelt){w.classList.add('show');document.getElementById('meltMsg').textContent=`WARNING: T_fc(${res.Tfc.toFixed(0)}°C) > T_melt ${res.fuelType}(${res.Tmelt}°C)`}else w.classList.remove('show');
+  document.getElementById('eqPanel').innerHTML=`<div class="eq-line"><span class="eq-var">mode =</span><span class="eq-val">${kMode==='kT'?'k(T)':'Constant k'}</span></div><div class="eq-line"><span class="eq-var">q′ =</span><span class="eq-val">${res.qPrime.toFixed(0)} W/m (${(res.qPrime/100).toFixed(0)} W/cm)</span></div><div class="eq-line"><span class="eq-var">k_fuel =</span><span class="eq-val">${res.kFuel.toFixed(2)}${kMode==='kT'?' (eff)':''}</span></div><div class="eq-line"><span class="eq-var">k_clad =</span><span class="eq-val">${res.kClad.toFixed(2)}${kMode==='kT'?' (eff)':''}</span></div><div class="eq-line"><span class="eq-var">k_bond =</span><span class="eq-val">${res.kBond.toFixed(2)}${kMode==='kT'?' (eff)':''}</span></div><div class="eq-line" style="border-top:1px solid var(--border);padding-top:3px;margin-top:2px"><span class="eq-var" style="color:var(--fuel-c)">T_fc =</span><span class="eq-val" style="color:${res.Tfc>res.Tmelt?'var(--warn)':'var(--safe)'};font-weight:700">${res.Tfc.toFixed(1)} °C</span></div>`;
+  drawCS(res);drawRG(res);drawKTGraph(res);
+}
+
+// ═══════ PRESETS & EVENTS ═══════
+function applyPreset(n){const P={sfr:{c:'Na',d:'HT9',b:'Na',f:'Metal',q:300,t:400},pwr:{c:'H2O',d:'Zircaloy',b:'He',f:'UO2',q:200,t:300},htgr:{c:'He',d:'SS316',b:'He',f:'UO2',q:100,t:500}};const p=P[n];document.getElementById('selCoolant').value=p.c;document.getElementById('selClad').value=p.d;document.getElementById('selBond').value=p.b;document.getElementById('selFuel').value=p.f;document.getElementById('sliderQ').value=p.q;document.getElementById('sliderTc').value=p.t;document.getElementById('numQ').value=p.q;document.getElementById('numTc').value=p.t;updateUI()}
+function toggleGeom(){const f=document.getElementById('geomFields');f.classList.toggle('open');document.getElementById('geomToggle').textContent=f.classList.contains('open')?'▾ Fuel Pin Dimensions':'▸ Fuel Pin Dimensions'}
+['selCoolant','selClad','selBond','selFuel'].forEach(id=>document.getElementById(id).addEventListener('change',()=>updateUI()));
+['sliderQ','sliderTc'].forEach(id=>document.getElementById(id).addEventListener('input',()=>updateUI()));
+['inRfo','inRci','inRco','inDelta'].forEach(id=>document.getElementById(id).addEventListener('input',()=>updateUI(id)));
+document.getElementById('numQ').addEventListener('input',()=>updateUI('numQ'));
+document.getElementById('numTc').addEventListener('input',()=>updateUI('numTc'));
+document.getElementById('numQ').addEventListener('blur',function(){let v=parseFloat(this.value);if(isNaN(v))v=200;this.value=Math.max(20,Math.min(500,Math.round(v)));document.getElementById('sliderQ').value=this.value;updateUI()});
+document.getElementById('numTc').addEventListener('blur',function(){let v=parseFloat(this.value);if(isNaN(v))v=400;this.value=Math.max(150,Math.min(650,Math.round(v)));document.getElementById('sliderTc').value=this.value;updateUI()});
+let _rt;window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(updateUI,60)});
+updateUI();
+</script>
+</body>
+</html>
